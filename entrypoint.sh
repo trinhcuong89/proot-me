@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/container
+
 
 DISTRO_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-20.04-base-amd64.tar.gz"
 
