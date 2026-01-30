@@ -1,12 +1,16 @@
-FROM alpine:latest
+FROM ubuntu:22.04
 
-RUN apk add --no-cache proot bash curl tar coreutils
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN adduser -D -h /home/container container
+RUN apt-get update && \
+    apt-get install -y proot bash curl tar coreutils && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -d /home/container container
 USER container
-ENV  USER=container HOME=/home/container
+ENV HOME=/home/container
 WORKDIR /home/container
 
-COPY ./entrypoint.sh /entrypoint.sh
 
 CMD ["/bin/bash", "/entrypoint.sh"]
