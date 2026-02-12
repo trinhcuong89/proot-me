@@ -1,20 +1,49 @@
-#!/bin/bash
-cd /home/container
-DISTRO_URL="https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04.5-base-amd64.tar.gz"
-if [ ! -d "./rootfs" ] || [ -z "$(ls -A ./rootfs)" ]; then
-    mkdir -p ./rootfs
-    echo "--- Đang tải Distro về cho Pterodactyl... ---"
-    curl -sSL "$DISTRO_URL" | tar -xzC ./rootfs || { echo "LỖI: Tải hoặc giải nén thất bại!"; exit 1; }
-fi
-if [ -d "./rootfs/etc" ]; then
-    echo "nameserver 8.8.8.8" > ./rootfs/etc/resolv.conf
+#!/bin/sh
+
+ROOTFS_DIR=/home/container/rootfs
+PROOT_VERSION="5.3.0"
+
+ARCH=$(uname -m)
+
+if [ "$ARCH" = "x86_64" ]; then
+  ARCH_ALT="x86_64"
+elif [ "$ARCH" = "aarch64" ]; then
+  ARCH_ALT="aarch64"
 else
-    echo "LỖI: Thư mục /etc không tồn tại trong rootfs!"
-    exit 1
+  echo "Unsupported architecture"
+  exit 1
 fi
-echo "--- Khởi động môi trường PRoot ---"
-exec proot -r ./rootfs -0 -w / \
-    -b /dev -b /proc -b /sys \
-    /usr/bin/env -i \
-    HOME=/root TERM=$TERM PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-    /bin/bash
+
+mkdir -p $ROOTFS_DIR
+
+# Download Ubuntu rootfs nếu chưa có
+if [ ! -f "$ROOTFS_DIR/.installed" ]; then
+  echo "Downloading Ubuntu Base..."
+  curl -L https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04.5-base-amd64.tar.gz \
+  | tar -xz -C $ROOTFS_DIR
+
+  echo "nameserver 1.1.1.1" > $ROOTFS_DIR/etc/resolv.conf
+
+  touch $ROOTFS_DIR/.installed
+fi
+
+# Download proot static nếu chưa có
+if [ ! -f "./proot" ]; then
+  curl -Lo ./proot \
+  https://github.com/proot-me/proot/releases/download/v${PROOT_VERSION}/proot-v${PROOT_VERSION}-${ARCH}-static
+  chmod +x ./proot
+fi
+
+echo "Starting Ubuntu PRoot..."
+
+exec ./proot \
+--rootfs="$ROOTFS_DIR" \
+--link2symlink \
+--kill-on-exit \
+--root-id \
+--cwd=/root \
+--bind=/proc \
+--bind=/dev \
+--bind=/sys \
+--bind=/tmp \
+/bin/bash
